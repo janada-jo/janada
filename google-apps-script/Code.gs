@@ -233,7 +233,8 @@ function readAll(adminKey) {
 
   for (var i = 1; i < values.length; i++) {
     var v = values[i];
-    if (isEmpty(v[COL.registrationDate]) && isEmpty(v[COL.fullName])) continue;
+    // استبعاد صفوف القمامة (لا يوجد اسم فيها) حتى لا تصل لوحة التحكم
+    if (isEmpty(v[COL.fullName])) continue;
 
     members.push({
       registrationDate: formatRegDate(v[COL.registrationDate]),

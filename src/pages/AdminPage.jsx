@@ -93,8 +93,14 @@ export default function AdminPage() {
     setError('')
     getMembers(ADMIN_PASSWORD)
       .then((res) => {
-        if (res?.success && Array.isArray(res.data)) {
-          setMembers(res.data)
+        if (res?.success) {
+          // استبعاد أي عنصر ليس سجلّاً صالحاً حتى لا يُقرأ m.fullName من undefined
+          const rows = Array.isArray(res.data)
+            ? res.data.filter(
+                (m) => m && typeof m === 'object' && typeof m.fullName === 'string'
+              )
+            : []
+          setMembers(rows)
         } else {
           setError(res?.message || 'تعذر تحميل البيانات')
         }
