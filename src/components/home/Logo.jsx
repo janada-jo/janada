@@ -1,9 +1,9 @@
 import { motion } from 'framer-motion'
+import logo from '../../assets/logo.svg'
 
 /**
  * مكوّن الشعار.
- * - إذا وُجد ملف `src/assets/logo.svg` يُعرض تلقائياً.
- * - وإلا يُعرض شعار احتياطي أنيق (درع + نجمة) بألوان الهوية.
+ * إذا تعذر تحميل الصورة يتم إظهار شعار احتياطي.
  */
 export default function Logo({ className = 'h-24 w-24' }) {
   return (
@@ -12,7 +12,7 @@ export default function Logo({ className = 'h-24 w-24' }) {
       title="شعار عائلة الجنادا"
     >
       <img
-        src="/src/assets/logo.svg"
+        src={logo}
         alt="شعار عائلة الجنادا"
         className="h-full w-full object-contain"
         onError={(e) => {
@@ -21,12 +21,13 @@ export default function Logo({ className = 'h-24 w-24' }) {
           if (fallback) fallback.style.display = 'flex'
         }}
       />
+
       <FallbackLogo className={className} />
     </div>
   )
 }
 
-/** شعار احتياطي أنيق - درع عنابي مع نجمة ذهبية */
+/** شعار احتياطي */
 function FallbackLogo({ className }) {
   return (
     <div
@@ -50,12 +51,14 @@ function FallbackLogo({ className }) {
               <stop offset="100%" stopColor="#6D1020" />
             </linearGradient>
           </defs>
+
           <path
             d="M50 6 L90 20 V60 C90 86 72 104 50 114 C28 104 10 86 10 60 V20 Z"
             fill="url(#shieldGrad)"
             stroke="#C8A04D"
             strokeWidth="2.5"
           />
+
           <path
             d="M50 16 L50 100 M50 16 C42 30 32 34 22 34 M50 16 C58 30 68 34 78 34"
             fill="none"
@@ -63,6 +66,7 @@ function FallbackLogo({ className }) {
             strokeWidth="1.5"
             opacity="0.4"
           />
+
           <path
             d="M50 36 L57 52 L74 54 L61 66 L65 83 L50 74 L35 83 L39 66 L26 54 L43 52 Z"
             fill="#C8A04D"
