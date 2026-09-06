@@ -4,10 +4,9 @@ import { SHEET_COLUMNS } from '../types'
  * تصدير البيانات إلى ملف Excel (CSV متوافق مع Excel)
  */
 
-/** تحويل سجلات العائلة إلى صفوف حسب أعمدة الجدول */
+/** تحويل سجلات العائلة إلى صفوف حسب أعمدة الجدول (بدون ID) */
 const toRows = (members) =>
   members.map((m) => [
-    m.id,
     m.registrationDate,
     m.fullName,
     m.nationalId,

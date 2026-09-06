@@ -4,16 +4,31 @@
  * Google Apps Script
  * ============================================================
  *
- * ترتيب أعمدة الورقة:
- * A | B | C | D | E | F | G | H | I | J | K | L | M
- * ID | تاريخ التسجيل | الاسم الرباعي | الرقم الوطني | تاريخ الميلاد |
- * الحالة الاجتماعية | المؤهل العلمي | التخصص | طبيعة العمل | مكان السكن |
- * رقم الهاتف | نوع الدم | مشترك بالجمعية
+ * ترتيب أعمدة الورقة (12 عموداً - بدون عمود ID):
+ * A : تاريخ التسجيل
+ * B : الاسم الرباعي
+ * C : الرقم الوطني
+ * D : تاريخ الميلاد
+ * E : الحالة الاجتماعية
+ * F : المؤهل العلمي
+ * G : التخصص
+ * H : طبيعة العمل
+ * I : مكان السكن
+ * J : رقم الهاتف
+ * K : نوع الدم
+ * L : مشترك بالجمعية
  *
- * ============================================================
  * الإعدادات الوحيدة المطلوبة:
  *   ADMIN_PASSWORD - يجب أن تطابق VITE_ADMIN_PASSWORD في ملف .env
  *   SHEET_NAME     - اسم الورقة داخل الملف
+ *
+ * الإجراءات المدعومة (عبر data.action في POST):
+ *   add    -> إضافة سجل جديد
+ *   read   -> قراءة جميع السجلات
+ *   update -> تعديل سجل (المفتاح: الرقم الوطني)
+ *   delete -> حذف سجل (المفتاح: الرقم الوطني)
+ *
+ * ملاحظة: كل الاستجابات تُعاد بصيغة JSON فقط.
  * ============================================================
  */
 
@@ -23,30 +38,75 @@ var ADMIN_PASSWORD = 'Divan2024!';
 /** اسم الورقة داخل Google Sheets */
 var SHEET_NAME = 'Sheet1';
 
-/** نقطة الدخول الرئيسية من الواجهة */
+/**
+ * تفعيل سجلات التطوير داخل Logger.
+ * ضعها على false (أو احذف سطور log) بعد التأكد من عمل النظام.
+ */
+var DEBUG = true;
+
+/** فهارس الأعمدة (تبدأ من صفر) - تطابق ترتيب أعمدة الورقة أعلاه */
+var COL = {
+  registrationDate: 0, // A
+  fullName: 1, // B
+  nationalId: 2, // C
+  birthDate: 3, // D
+  maritalStatus: 4, // E
+  educationLevel: 5, // F
+  specialization: 6, // G
+  workNature: 7, // H
+  residence: 8, // I
+  phone: 9, // J
+  bloodType: 10, // K
+  isSocietyMember: 11, // L
+};
+
+/** إجمالي عدد الأعمدة في الورقة */
+var COLUMNS_COUNT = 12;
+
+/**
+ * اسماء الحقول المعتمدة (يجب أن تطابق 100% حقول React):
+ * fullName, nationalId, birthDate, maritalStatus, educationLevel,
+ * specialization, workNature, residence, phone, bloodType, isSocietyMember
+ */
+
+/** نقطة الدخول الرئيسية من الواجهة (POST) */
 function doPost(e) {
   try {
-    var data = JSON.parse(e.postData.contents);
+    if (!e || !e.postData || !e.postData.contents) {
+      return errorResponse('طلب غير صالح: لا توجد بيانات مرسلة', 400);
+    }
+
+    var data;
+    try {
+      data = JSON.parse(e.postData.contents);
+    } catch (err) {
+      log('تعذر تحليل البيانات المستلمة', e.postData.contents);
+      return errorResponse('البيانات المرسلة ليست JSON صالح', 400);
+    }
+
     var action = data.action || '';
+    log('doPost → action:', action);
 
     switch (action) {
       case 'add':
         return addMember(data.payload);
-      case 'readAll':
+      case 'read':
         return readAll(data.adminKey);
       case 'update':
         return updateRow(data.adminKey, data.row);
       case 'delete':
-        return deleteRow(data.adminKey, data.id);
+        return deleteRow(data.adminKey, data.nationalId);
       default:
+        log('إجراء غير معروف:', action);
         return errorResponse('إجراء غير معروف', 400);
     }
   } catch (err) {
-    return errorResponse('حدث خطأ: ' + err.message, 500);
+    log('خطأ غير متوقع:', err && err.message);
+    return errorResponse('حدث خطأ: ' + (err && err.message), 500);
   }
 }
 
-/** اختيار GET - لتأكيد عمل الخدمة */
+/** اختيار GET - للتأكد من عمل الخدمة */
 function doGet() {
   return jsonOutput({
     success: true,
@@ -57,7 +117,10 @@ function doGet() {
 /* ====================== إضافة فرد ====================== */
 
 function addMember(payload) {
-  if (!payload) return errorResponse('البيانات غير صالحة', 400);
+  log('addMember → payload:', payload);
+  if (!payload || typeof payload !== 'object') {
+    return errorResponse('البيانات غير صالحة', 400);
+  }
 
   var requiredFields = [
     'fullName',
@@ -74,7 +137,10 @@ function addMember(payload) {
 
   for (var i = 0; i < requiredFields.length; i++) {
     if (isEmpty(payload[requiredFields[i]])) {
-      return errorResponse('يرجى تعبئة جميع الحقول المطلوبة', 400);
+      return errorResponse(
+        'يرجى تعبئة جميع الحقول المطلوبة: ' + requiredFields[i],
+        400
+      );
     }
   }
 
@@ -84,28 +150,28 @@ function addMember(payload) {
   }
 
   var sheet = getSheet();
+  if (!sheet) return errorResponse('لم يتم العثور على الورقة: ' + SHEET_NAME, 500);
 
-  // منع التكرار: الرقم الوطني في العمود D
   if (nationalIdExists(sheet, nationalId)) {
     return errorResponse('هذا الرقم الوطني مسجل مسبقاً', 409);
   }
 
   sheet.appendRow([
-    generateId(),
-    new Date().toLocaleString('sv-SE'),
-    String(payload.fullName || '').trim(),
-    nationalId,
-    String(payload.birthDate || ''),
-    String(payload.maritalStatus || ''),
-    String(payload.educationLevel || ''),
-    String(payload.specialization || '').trim(),
-    String(payload.workNature || ''),
-    String(payload.residence || '').trim(),
-    String(payload.phone || '').trim(),
-    String(payload.bloodType || ''),
-    String(payload.isSocietyMember || ''),
+    new Date().toLocaleString('sv-SE'), // A: تاريخ التسجيل
+    String(payload.fullName || '').trim(), // B: الاسم الرباعي
+    nationalId, // C: الرقم الوطني
+    String(payload.birthDate || '').trim(), // D: تاريخ الميلاد
+    String(payload.maritalStatus || '').trim(), // E: الحالة الاجتماعية
+    String(payload.educationLevel || '').trim(), // F: المؤهل العلمي
+    String(payload.specialization || '').trim(), // G: التخصص
+    String(payload.workNature || '').trim(), // H: طبيعة العمل
+    String(payload.residence || '').trim(), // I: مكان السكن
+    String(payload.phone || '').trim(), // J: رقم الهاتف
+    String(payload.bloodType || '').trim(), // K: نوع الدم
+    String(payload.isSocietyMember || '').trim(), // L: مشترك بالجمعية
   ]);
 
+  log('addMember → تمت الإضافة للرقم الوطني:', nationalId);
   return successResponse({}, 'تم تسجيل البيانات بنجاح');
 }
 
@@ -115,30 +181,32 @@ function readAll(adminKey) {
   if (!checkAdmin(adminKey)) return errorResponse('كلمة المرور غير صحيحة', 403);
 
   var sheet = getSheet();
+  if (!sheet) return errorResponse('لم يتم العثور على الورقة: ' + SHEET_NAME, 500);
+
   var values = sheet.getDataRange().getValues();
   var members = [];
 
   for (var i = 1; i < values.length; i++) {
     var v = values[i];
-    if (isEmpty(v[0]) && isEmpty(v[2])) continue;
+    if (isEmpty(v[COL.registrationDate]) && isEmpty(v[COL.fullName])) continue;
 
     members.push({
-      id: String(v[0] || ''),
-      registrationDate: String(v[1] || ''),
-      fullName: String(v[2] || ''),
-      nationalId: String(v[3] || ''),
-      birthDate: String(v[4] || ''),
-      maritalStatus: String(v[5] || ''),
-      educationLevel: String(v[6] || ''),
-      specialization: String(v[7] || ''),
-      workNature: String(v[8] || ''),
-      residence: String(v[9] || ''),
-      phone: String(v[10] || ''),
-      bloodType: String(v[11] || ''),
-      isSocietyMember: String(v[12] || ''),
+      registrationDate: formatRegDate(v[COL.registrationDate]),
+      fullName: String(v[COL.fullName] || '').trim(),
+      nationalId: String(v[COL.nationalId] || '').trim(),
+      birthDate: formatBirthDate(v[COL.birthDate]),
+      maritalStatus: String(v[COL.maritalStatus] || '').trim(),
+      educationLevel: String(v[COL.educationLevel] || '').trim(),
+      specialization: String(v[COL.specialization] || '').trim(),
+      workNature: String(v[COL.workNature] || '').trim(),
+      residence: String(v[COL.residence] || '').trim(),
+      phone: String(v[COL.phone] || '').trim(),
+      bloodType: String(v[COL.bloodType] || '').trim(),
+      isSocietyMember: String(v[COL.isSocietyMember] || '').trim(),
     });
   }
 
+  log('readAll → عدد السجلات:', members.length);
   return successResponse(members, 'تم جلب البيانات بنجاح');
 }
 
@@ -146,54 +214,83 @@ function readAll(adminKey) {
 
 function updateRow(adminKey, row) {
   if (!checkAdmin(adminKey)) return errorResponse('كلمة المرور غير صحيحة', 403);
-  if (!row || !row.id) return errorResponse('معرف غير صالح', 400);
+  if (!row || !row.nationalId) return errorResponse('رقم وطني غير صالح', 400);
+
+  var newId = String(row.nationalId).trim();
+  if (!/^\d{10}$/.test(newId)) {
+    return errorResponse('الرقم الوطني يجب أن يتكون من 10 أرقام', 400);
+  }
+
+  // الرقم الوطني الأصلي قبل التعديل (للإيجاد في الورقة)
+  var originalId = String((row.originalNationalId || row.nationalId) || '').trim();
 
   var sheet = getSheet();
+  if (!sheet) return errorResponse('لم يتم العثور على الورقة: ' + SHEET_NAME, 500);
+
   var values = sheet.getDataRange().getValues();
 
   for (var i = 1; i < values.length; i++) {
-    if (String(values[i][0]) === String(row.id)) {
-      sheet.getRange(i + 1, 1, 1, 13).setValues([
+    if (String(values[i][COL.nationalId]).trim() === originalId) {
+      // منع التطابق مع سجل آخر عند تغيير الرقم الوطني
+      for (var j = 1; j < values.length; j++) {
+        if (
+          j !== i &&
+          String(values[j][COL.nationalId]).trim() === newId &&
+          newId !== originalId
+        ) {
+          return errorResponse('هذا الرقم الوطني مسجل مسبقاً لشخص آخر', 409);
+        }
+      }
+
+      sheet.getRange(i + 1, 1, 1, COLUMNS_COUNT).setValues([
         [
-          String(row.id || ''),
-          String(values[i][1] || row.registrationDate || ''),
-          String(row.fullName || ''),
-          String(row.nationalId || ''),
-          String(row.birthDate || ''),
-          String(row.maritalStatus || ''),
-          String(row.educationLevel || ''),
-          String(row.specialization || ''),
-          String(row.workNature || ''),
-          String(row.residence || ''),
-          String(row.phone || ''),
-          String(row.bloodType || ''),
-          String(row.isSocietyMember || ''),
+          String(
+            row.registrationDate ||
+              formatRegDate(values[i][COL.registrationDate])
+          ), // A: تاريخ التسجيل (بما هو)
+          String(row.fullName || '').trim(), // B
+          newId, // C
+          String(row.birthDate || '').trim(), // D
+          String(row.maritalStatus || '').trim(), // E
+          String(row.educationLevel || '').trim(), // F
+          String(row.specialization || '').trim(), // G
+          String(row.workNature || '').trim(), // H
+          String(row.residence || '').trim(), // I
+          String(row.phone || '').trim(), // J
+          String(row.bloodType || '').trim(), // K
+          String(row.isSocietyMember || '').trim(), // L
         ],
       ]);
+
+      log('updateRow → تم تحديث الرقم الوطني:', newId);
       return successResponse({}, 'تم حفظ التعديلات بنجاح');
     }
   }
 
-  return errorResponse('لم يتم العثور على السجل', 404);
+  return errorResponse('لم يتم العثور على سجل بهذا الرقم الوطني', 404);
 }
 
 /* ====================== حذف سجل ====================== */
 
-function deleteRow(adminKey, id) {
+function deleteRow(adminKey, nationalId) {
   if (!checkAdmin(adminKey)) return errorResponse('كلمة المرور غير صحيحة', 403);
-  if (!id) return errorResponse('معرف غير صالح', 400);
+  if (!nationalId) return errorResponse('رقم وطني غير صالح', 400);
 
+  var id = String(nationalId).trim();
   var sheet = getSheet();
+  if (!sheet) return errorResponse('لم يتم العثور على الورقة: ' + SHEET_NAME, 500);
+
   var values = sheet.getDataRange().getValues();
 
   for (var i = 1; i < values.length; i++) {
-    if (String(values[i][0]) === String(id)) {
+    if (String(values[i][COL.nationalId]).trim() === id) {
       sheet.deleteRow(i + 1);
+      log('deleteRow → تم حذف الرقم الوطني:', id);
       return successResponse({}, 'تم حذف السجل بنجاح');
     }
   }
 
-  return errorResponse('لم يتم العثور على السجل', 404);
+  return errorResponse('لم يتم العثور على سجل بهذا الرقم الوطني', 404);
 }
 
 /* ====================== أدوات مساعدة ====================== */
@@ -203,13 +300,13 @@ function getSheet() {
 }
 
 function checkAdmin(key) {
-  return String(key || '') === String(ADMIN_PASSWORD);
+  return String(key || '').trim() === String(ADMIN_PASSWORD);
 }
 
 function nationalIdExists(sheet, nationalId) {
   var values = sheet.getDataRange().getValues();
   for (var i = 1; i < values.length; i++) {
-    if (String(values[i][3]).trim() === nationalId) {
+    if (String(values[i][COL.nationalId]).trim() === nationalId) {
       return true;
     }
   }
@@ -220,12 +317,40 @@ function isEmpty(value) {
   return value === undefined || value === null || String(value).trim() === '';
 }
 
-function generateId() {
-  return (
-    'M' +
-    new Date().getTime().toString(36) +
-    Math.random().toString(36).slice(2, 8)
-  );
+/** توحيد قيمة تاريخ التسجيل (قد تكون Date أو نصاً) */
+function formatRegDate(value) {
+  if (value instanceof Date) {
+    return Utilities.formatDate(
+      value,
+      Session.getScriptTimeZone(),
+      'yyyy-MM-dd HH:mm:ss'
+    );
+  }
+  return String(value || '').trim();
+}
+
+/** توحيد قيمة تاريخ الميلاد بصيغة yyyy-MM-dd (كما يرسلها النموذج) */
+function formatBirthDate(value) {
+  if (value instanceof Date) {
+    return Utilities.formatDate(
+      value,
+      Session.getScriptTimeZone(),
+      'yyyy-MM-dd'
+    );
+  }
+  return String(value || '').trim();
+}
+
+/** سجل تطوير يتوقف تلقائياً عند إيقاف DEBUG */
+function log(label, value) {
+  if (!DEBUG) return;
+  var str;
+  try {
+    str = typeof value === 'string' ? value : JSON.stringify(value);
+  } catch (err) {
+    str = String(value);
+  }
+  Logger.log(label + ' ' + str);
 }
 
 /* ====================== تنسيق الردود ====================== */

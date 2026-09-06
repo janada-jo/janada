@@ -41,10 +41,9 @@ export const DROPDOWNS = {
 
 /**
  * بنية البيانات المُرسلة عند تسجيل فرد جديد
- * - تتطابق مع ترتيب أعمدة Google Sheets
+ * - تتطابق مع ترتيب أعمدة Google Sheets (بدون عمود ID)
  */
 export const SHEET_COLUMNS = [
-  'ID',
   'تاريخ التسجيل',
   'الاسم الرباعي',
   'الرقم الوطني',

@@ -68,6 +68,7 @@ export default function AdminPage() {
 
   // تعديل / حذف / إضافة
   const [editing, setEditing] = useState(null)
+  const [editingOriginalId, setEditingOriginalId] = useState(null)
   const [deleting, setDeleting] = useState(null)
   const [adding, setAdding] = useState(false)
 
@@ -102,26 +103,39 @@ export default function AdminPage() {
       .finally(() => setLoading(false))
   }
 
-  /** حذف سجل */
-  const handleDelete = (id) => {
+  /** حذف سجل بالرقم الوطني */
+  const handleDelete = (nationalId) => {
     setError('')
-    deleteMember(ADMIN_PASSWORD, id)
-      .then(() => setMembers((prev) => prev.filter((m) => m.id !== id)))
+    deleteMember(ADMIN_PASSWORD, nationalId)
+      .then(() =>
+        setMembers((prev) => prev.filter((m) => m.nationalId !== nationalId))
+      )
       .catch((err) => setError(err?.message || 'تعذر حذف البيانات'))
       .finally(() => setDeleting(null))
+  }
+
+  /** فتح نافذة التعديل مع حفظ الرقم الوطني الأصلي */
+  const openEdit = (member) => {
+    setEditingOriginalId(member.nationalId)
+    setEditing({ ...member })
   }
 
   /** حفظ تعديل */
   const handleSaveEdit = () => {
     setError('')
-    updateMember(ADMIN_PASSWORD, editing)
+    updateMember(ADMIN_PASSWORD, editing, editingOriginalId)
       .then(() =>
         setMembers((prev) =>
-          prev.map((m) => (m.id === editing.id ? editing : m))
+          prev.map((m) =>
+            m.nationalId === editingOriginalId ? editing : m
+          )
         )
       )
       .catch((err) => setError(err?.message || 'تعذر تحديث البيانات'))
-      .finally(() => setEditing(null))
+      .finally(() => {
+        setEditing(null)
+        setEditingOriginalId(null)
+      })
   }
 
   /** نجاح إضافة سجل جديد */
@@ -326,7 +340,7 @@ export default function AdminPage() {
                 <tbody>
                   {filtered.map((m) => (
                     <tr
-                      key={m.id}
+                      key={m.nationalId}
                       className="border-b border-line transition-colors hover:bg-maroon-50/40"
                     >
                       <td className="whitespace-nowrap px-3 py-3 font-medium">{m.fullName}</td>
@@ -350,7 +364,7 @@ export default function AdminPage() {
                       <td className="whitespace-nowrap px-3 py-3">
                         <div className="flex items-center justify-center gap-1">
                           <button
-                            onClick={() => setEditing({ ...m })}
+                            onClick={() => openEdit(m)}
                             className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-maroon-50 hover:text-maroon-800"
                             title="تعديل"
                           >
@@ -389,7 +403,7 @@ export default function AdminPage() {
         <DeleteConfirm
           member={deleting}
           onClose={() => setDeleting(null)}
-          onConfirm={() => handleDelete(deleting.id)}
+          onConfirm={() => handleDelete(deleting.nationalId)}
         />
       )}
 
