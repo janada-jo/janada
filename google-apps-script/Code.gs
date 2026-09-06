@@ -76,6 +76,9 @@ function doPost(e) {
       return errorResponse('طلب غير صالح: لا توجد بيانات مرسلة', 400);
     }
 
+    // ===== DEBUG 1) الطلب الخام كما وصل إلى الخادم =====
+    Logger.log('[DEBUG doPost] 1) RAW e.postData.contents = ' + e.postData.contents);
+
     var data;
     try {
       data = JSON.parse(e.postData.contents);
@@ -84,11 +87,17 @@ function doPost(e) {
       return errorResponse('البيانات المرسلة ليست JSON صالح', 400);
     }
 
+    // ===== DEBUG 2) البيانات بعد JSON.parse =====
+    Logger.log('[DEBUG doPost] 2) PARSED data = ' + JSON.stringify(data));
+
     var action = data.action || '';
-    log('doPost → action:', action);
+    // ===== DEBUG 3) قيمة action =====
+    Logger.log('[DEBUG doPost] 3) action = "' + action + '"');
 
     switch (action) {
       case 'add':
+        // ===== DEBUG 4) محتوى payload بالكامل =====
+        Logger.log('[DEBUG doPost] 4) payload = ' + JSON.stringify(data.payload));
         return addMember(data.payload);
       case 'read':
         return readAll(data.adminKey);
@@ -120,6 +129,34 @@ function addMember(payload) {
   log('addMember → payload:', payload);
   if (!payload || typeof payload !== 'object') {
     return errorResponse('البيانات غير صالحة', 400);
+  }
+
+  // ===== DEBUG 5) قيمة كل حقل منفصلة (مع إظهار الفارغ بوضوح) =====
+  var debugFields = [
+    ['fullName', payload.fullName],
+    ['nationalId', payload.nationalId],
+    ['birthDate', payload.birthDate],
+    ['maritalStatus', payload.maritalStatus],
+    ['educationLevel', payload.educationLevel],
+    ['specialization', payload.specialization],
+    ['workNature', payload.workNature],
+    ['residence', payload.residence],
+    ['phone', payload.phone],
+    ['bloodType', payload.bloodType],
+    ['isSocietyMember', payload.isSocietyMember],
+  ];
+  for (var d = 0; d < debugFields.length; d++) {
+    var fname = debugFields[d][0];
+    var fval = debugFields[d][1];
+    if (fval === undefined) {
+      Logger.log('[DEBUG addMember] 5) Field "' + fname + '" = UNDEFINED');
+    } else if (fval === null) {
+      Logger.log('[DEBUG addMember] 5) Field "' + fname + '" = NULL');
+    } else if (String(fval).trim() === '') {
+      Logger.log('[DEBUG addMember] 5) Field "' + fname + '" = EMPTY STRING');
+    } else {
+      Logger.log('[DEBUG addMember] 5) Field "' + fname + '" = "' + fval + '"');
+    }
   }
 
   var requiredFields = [
@@ -156,7 +193,7 @@ function addMember(payload) {
     return errorResponse('هذا الرقم الوطني مسجل مسبقاً', 409);
   }
 
-  sheet.appendRow([
+  var rowToAppend = [
     new Date().toLocaleString('sv-SE'), // A: تاريخ التسجيل
     String(payload.fullName || '').trim(), // B: الاسم الرباعي
     nationalId, // C: الرقم الوطني
@@ -169,7 +206,15 @@ function addMember(payload) {
     String(payload.phone || '').trim(), // J: رقم الهاتف
     String(payload.bloodType || '').trim(), // K: نوع الدم
     String(payload.isSocietyMember || '').trim(), // L: مشترك بالجمعية
-  ]);
+  ];
+
+  // ===== DEBUG 6) المصفوفة التي ستُرسل إلى Google Sheet قبل الإضافة =====
+  Logger.log('[DEBUG addMember] 6) ROW array to append = ' + JSON.stringify(rowToAppend));
+
+  sheet.appendRow(rowToAppend);
+
+  // ===== DEBUG 7) رقم الصف الذي تم الحفظ فيه بعد الإضافة =====
+  Logger.log('[DEBUG addMember] 7) SAVED at row #' + sheet.getLastRow());
 
   log('addMember → تمت الإضافة للرقم الوطني:', nationalId);
   return successResponse({}, 'تم تسجيل البيانات بنجاح');
