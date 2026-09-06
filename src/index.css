@@ -1,0 +1,108 @@
+@import "tailwindcss";
+
+@theme {
+  --font-cairo: "Cairo", ui-sans-serif, system-ui, sans-serif;
+
+  --color-maroon-50: #fbf3f4;
+  --color-maroon-100: #f5e0e3;
+  --color-maroon-200: #e9c1c7;
+  --color-maroon-300: #d9959f;
+  --color-maroon-400: #c45f6f;
+  --color-maroon-500: #a63d4f;
+  --color-maroon-600: #8c2a3c;
+  --color-maroon-700: #751a2b;
+  --color-maroon-800: #6D1020;
+  --color-maroon-900: #581425;
+
+  --color-gold-300: #e0c17e;
+  --color-gold-400: #d4b065;
+  --color-gold-500: #C8A04D;
+  --color-gold-600: #a9843c;
+  --color-gold-700: #8a6b30;
+
+  --color-surface: #FAFAFA;
+  --color-card: #FFFFFF;
+  --color-ink: #222222;
+  --color-line: #ECECEC;
+
+  --shadow-soft: 0 10px 40px -16px rgba(109, 16, 32, 0.15);
+  --shadow-card: 0 1px 2px rgba(34, 34, 34, 0.04), 0 8px 24px -12px rgba(34, 34, 34, 0.08);
+  --shadow-gold: 0 12px 32px -12px rgba(200, 160, 77, 0.5);
+
+  --animate-fade-in: fade-in 0.5s ease-out both;
+  --animate-fade-up: fade-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(18px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: var(--font-cairo);
+    background-color: var(--color-surface);
+    color: var(--color-ink);
+    direction: rtl;
+    text-align: right;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "kern";
+  }
+
+  * {
+    border-color: var(--color-line);
+  }
+
+  input,
+  select,
+  textarea,
+  button {
+    font-family: var(--font-cairo);
+  }
+}
+
+/* Selector to remove number input spinners (الرقم الوطني / الهاتف) */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* Custom date picker calendar icon color on dark inputs */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+}
+
+::selection {
+  background: rgba(200, 160, 77, 0.35);
+  color: #222222;
+}
+
+/* Thin scrollbar for the admin table */
+.thin-scrollbar::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+.thin-scrollbar::-webkit-scrollbar-track {
+  background: #f5f5f5;
+}
+.thin-scrollbar::-webkit-scrollbar-thumb {
+  background: #d8d8d8;
+  border-radius: 9999px;
+}
+.thin-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #bdbdbd;
+}
