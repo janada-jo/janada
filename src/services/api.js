@@ -13,7 +13,7 @@ import axios from 'axios'
  */
 const SCRIPT_URL =
   import.meta.env.VITE_SCRIPT_URL ||
-  'https://script.google.com/macros/s/AKfycbzs3a5jL08k_gcs2Jfc6Fx9p6Xlphv2ejQbgnaeS_duCOl9yYJrIYSZerIMMam5CULt/exec'
+  'https://script.google.com/macros/s/AKfycbxKqml3xyCJthAwr0_ldFCpkgnzO0C6N3MWcYis7dDQIsy3Tjx2EqAEnd85kvvDZHwE/exec'
 
 /** قاعدة عنوان الـ API (للوصول من عدة ملفات) */
 export const API_BASE = SCRIPT_URL
