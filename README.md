@@ -48,7 +48,7 @@ npm run preview
 
 ```env
 VITE_ADMIN_PASSWORD=كلمة_مرور_قوية
-VITE_SCRIPT_URL=https://script.google.com/macros/s/AKfycbz1KD9NrUB0dIVkaq6NPKKVbK7hMpmlvBQp2ROw9SUVQp52Yo_oqwEJskltj6h8cyDo/exec
+VITE_SCRIPT_URL=https://script.google.com/macros/s/AKfycbw8nfI-4zWhZIOzi-xz6OPp02kdNyLC68WG-RZaPAGHwGe0Qay5tb0Fj8mAqzIMBTlu/exec
 ```
 
 > **مهم:** غيّر كلمة المرور قبل النشر، واجعلها مطابقة لـ `ADMIN_PASSWORD` داخل `google-apps-script/Code.gs`.
