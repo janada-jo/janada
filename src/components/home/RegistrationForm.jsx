@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm, Controller, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
@@ -27,6 +27,51 @@ import RadioGroup from '../ui/RadioGroup'
 import Button from '../ui/Button'
 import { SectionTitle, FormMessage } from '../ui/section'
 
+const DAYS = Array.from({ length: 31 }, (_, i) => ({
+  value: String(i + 1).padStart(2, '0'),
+  label: String(i + 1),
+}))
+
+const MONTHS = [
+  { value: '01', label: 'كانون الثاني' },
+  { value: '02', label: 'شباط' },
+  { value: '03', label: 'آذار' },
+  { value: '04', label: 'نيسان' },
+  { value: '05', label: 'أيار' },
+  { value: '06', label: 'حزيران' },
+  { value: '07', label: 'تموز' },
+  { value: '08', label: 'آب' },
+  { value: '09', label: 'أيلول' },
+  { value: '10', label: 'تشرين الأول' },
+  { value: '11', label: 'تشرين الثاني' },
+  { value: '12', label: 'كانون الأول' },
+]
+
+const CURRENT_YEAR = new Date().getFullYear()
+const YEARS = Array.from({ length: CURRENT_YEAR - 1900 + 1 }, (_, i) => {
+  const year = CURRENT_YEAR - i
+  return { value: String(year), label: String(year) }
+})
+
+const composeBirthDate = (day, month, year) => {
+  if (!day || !month || !year) return ''
+  return `${year}-${month}-${day}`
+}
+
+const validateBirthDate = (value) => {
+  if (!value) return 'تاريخ الميلاد مطلوب'
+  const [year, month, day] = value.split('-').map(Number)
+  if (!year || !month || !day) return 'تاريخ الميلاد غير صحيح'
+  const date = new Date(year, month - 1, day)
+  const isValid =
+    date.getFullYear() === year &&
+    date.getMonth() === month - 1 &&
+    date.getDate() === day
+  if (!isValid) return 'تاريخ الميلاد غير صحيح'
+  if (date > new Date()) return 'تاريخ الميلاد يجب أن يكون في الماضي'
+  return true
+}
+
 /**
  * نموذج تسجيل أبناء عائلة الجنادا
  * - مقسّم إلى 5 أقسام واضحة
@@ -38,6 +83,7 @@ export default function RegistrationForm({ onSuccess }) {
     register,
     handleSubmit,
     control,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: zodResolver(registrationSchema),
@@ -46,6 +92,9 @@ export default function RegistrationForm({ onSuccess }) {
       fullName: '',
       nationalId: '',
       birthDate: '',
+      birthDay: '',
+      birthMonth: '',
+      birthYear: '',
       maritalStatus: '',
       educationLevel: '',
       specialization: '',
@@ -59,6 +108,17 @@ export default function RegistrationForm({ onSuccess }) {
 
   const [serverError, setServerError] = useState('')
   const phoneValue = useWatch({ control, name: 'phone' })
+  const birthDay = useWatch({ control, name: 'birthDay' })
+  const birthMonth = useWatch({ control, name: 'birthMonth' })
+  const birthYear = useWatch({ control, name: 'birthYear' })
+
+  useEffect(() => {
+    const value = composeBirthDate(birthDay, birthMonth, birthYear)
+    setValue('birthDate', value, {
+      shouldValidate: !!value,
+      shouldDirty: false,
+    })
+  }, [birthDay, birthMonth, birthYear, setValue])
 
   const submit = async (values) => {
     setServerError('')
@@ -100,7 +160,7 @@ export default function RegistrationForm({ onSuccess }) {
               title="المعلومات الشخصية"
               description="بيانات التعريف الأساسية الخاصة بالشخص"
             />
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
               <div className="sm:col-span-2">
                 <Input
                   label="الاسم الرباعي *"
@@ -119,7 +179,7 @@ export default function RegistrationForm({ onSuccess }) {
                 <Input
                   label="الرقم الوطني *"
                   placeholder="10 أرقام"
-                  type="text"
+                  type="tel"
                   inputMode="numeric"
                   maxLength={10}
                   icon={Hash}
@@ -133,14 +193,42 @@ export default function RegistrationForm({ onSuccess }) {
                 />
               </div>
 
-              <div>
-                <Input
-                  label="تاريخ الميلاد *"
-                  type="date"
-                  max={new Date().toISOString().slice(0, 10)}
-                  icon={CalendarDays}
-                  error={errors.birthDate?.message}
-                  {...register('birthDate')}
+              <div className="sm:col-span-2">
+                <div className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-ink">
+                  <CalendarDays
+                    className="h-4 w-4 text-maroon-400"
+                    aria-hidden="true"
+                  />
+                  <span>تاريخ الميلاد *</span>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <Select
+                    aria-label="اليوم"
+                    placeholder="اليوم"
+                    options={DAYS}
+                    {...register('birthDay')}
+                  />
+                  <Select
+                    aria-label="الشهر"
+                    placeholder="الشهر"
+                    options={MONTHS}
+                    {...register('birthMonth')}
+                  />
+                  <Select
+                    aria-label="السنة"
+                    placeholder="السنة"
+                    options={YEARS}
+                    {...register('birthYear')}
+                  />
+                </div>
+                {errors.birthDate?.message && (
+                  <p className="mt-1.5 text-xs font-medium text-red-600">
+                    {errors.birthDate.message}
+                  </p>
+                )}
+                <input
+                  type="hidden"
+                  {...register('birthDate', { validate: validateBirthDate })}
                 />
               </div>
 
@@ -164,7 +252,7 @@ export default function RegistrationForm({ onSuccess }) {
               title="التعليم"
               description="المؤهل العلمي والتخصص"
             />
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
               <div>
                 <Select
                   label="المؤهل العلمي *"
@@ -194,7 +282,7 @@ export default function RegistrationForm({ onSuccess }) {
               title="العمل"
               description="طبيعة العمل الحالية"
             />
-            <div className="grid grid-cols-1 gap-5">
+            <div className="grid grid-cols-1 gap-6">
               <Select
                 label="طبيعة العمل *"
                 placeholder="اختر طبيعة العمل"
@@ -213,7 +301,7 @@ export default function RegistrationForm({ onSuccess }) {
               title="التواصل"
               description="بيانات الاتصال والسكن"
             />
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
               <div>
                 <Input
                   label="مكان السكن *"
